@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transcribe</title>
+    <meta name="description" content="Split a song into instruments, mix them for play-along practice, and transcribe the piano to sheet music. Runs entirely in your browser." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23243440'/%3E%3Crect x='6' y='8' width='4' height='16' rx='1' fill='%235FC9A8'/%3E%3Crect x='14' y='5' width='4' height='22' rx='1' fill='%234FA3E0'/%3E%3Crect x='22' y='11' width='4' height='12' rx='1' fill='%23E36B5D'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" crossorigin />
+    <script src="./coi-serviceworker.min.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <h1 class="brand">Transcribe</h1>
+      <p class="song" id="songName"></p>
+      <label class="btn btn-quiet" id="openBtn">
+        Open audio file
+        <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.flac,.m4a,.ogg,.aac" hidden />
+      </label>
+    </header>
+
+    <main>
+      <section class="drop" id="dropZone">
+        <div class="drop-inner">
+          <svg class="drop-icon" viewBox="0 0 64 40" aria-hidden="true">
+            <rect x="2" y="14" width="6" height="12" rx="2" />
+            <rect x="12" y="6" width="6" height="28" rx="2" />
+            <rect x="22" y="10" width="6" height="20" rx="2" />
+            <rect x="32" y="2" width="6" height="36" rx="2" />
+            <rect x="42" y="12" width="6" height="16" rx="2" />
+            <rect x="52" y="16" width="6" height="8" rx="2" />
+          </svg>
+          <h2>Drop a song here</h2>
+          <p>Or <label class="link">choose a file<input type="file" id="fileInput2" accept="audio/*,.mp3,.wav,.flac,.m4a,.ogg,.aac" hidden /></label>. MP3, WAV, FLAC, M4A and OGG all work.</p>
+          <p class="fine">Everything runs on your computer. Your audio is never uploaded.</p>
+        </div>
+      </section>
+
+      <section class="deck" id="deck" hidden>
+        <div class="transport">
+          <button class="play" id="playBtn" aria-label="Play">
+            <svg viewBox="0 0 24 24" class="i-play"><path d="M7 4.5v15l13-7.5z" /></svg>
+            <svg viewBox="0 0 24 24" class="i-pause"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z" /></svg>
+          </button>
+          <div class="clock"><span id="timeNow">0:00.0</span><span class="clock-total" id="timeTotal">/ 0:00.0</span></div>
+          <div class="wave-wrap">
+            <canvas id="wave" class="wave" aria-label="Song position. Click to jump."></canvas>
+          </div>
+          <div class="loop">
+            <button class="btn btn-small" id="setA" title="Set loop start at the playhead (A)">Set A</button>
+            <button class="btn btn-small" id="setB" title="Set loop end at the playhead (B)">Set B</button>
+            <button class="btn btn-small toggle" id="loopBtn" aria-pressed="false" title="Loop between A and B (L)">Loop</button>
+            <span class="loop-read" id="loopRead">No loop set</span>
+          </div>
+        </div>
+
+        <div class="split" id="splitPanel">
+          <div class="split-text">
+            <h2>Split into instruments</h2>
+            <p>Separates drums, bass, vocals, guitar, piano and everything else, so you can turn any part up, down or off. The first run downloads the model (<span id="modelSize">136 MB</span>); after that it’s saved in your browser.</p>
+          </div>
+          <div class="split-actions">
+            <label class="field">
+              <span>Engine</span>
+              <select id="engineSel">
+                <option value="auto">Automatic</option>
+                <option value="gpu">Graphics card (faster, 285 MB)</option>
+                <option value="cpu">Processor (136 MB)</option>
+              </select>
+            </label>
+            <button class="btn btn-primary" id="splitBtn">Split instruments</button>
+          </div>
+          <div class="progress" id="splitProgress" hidden>
+            <div class="progress-bar"><div class="progress-fill" id="splitFill"></div></div>
+            <p class="progress-text" id="splitText"></p>
+            <button class="btn btn-small" id="splitCancel">Cancel</button>
+          </div>
+        </div>
+
+        <div class="console" id="console" role="group" aria-label="Mixer"></div>
+      </section>
+
+      <section class="score" id="scorePanel" hidden>
+        <div class="score-head">
+          <h2>Transcription</h2>
+          <div class="score-run">
+            <label class="field">
+              <span>Instrument</span>
+              <select id="sourceSel"></select>
+            </label>
+            <button class="btn btn-primary" id="transcribeBtn">Transcribe</button>
+          </div>
+        </div>
+        <p class="score-hint" id="scoreHint">Split the instruments first for a clean piano transcription. Transcribing the full mix works too, but picks up every instrument.</p>
+        <div class="progress" id="trProgress" hidden>
+          <div class="progress-bar"><div class="progress-fill" id="trFill"></div></div>
+          <p class="progress-text" id="trText"></p>
+        </div>
+
+        <div class="score-tools" id="scoreTools" hidden>
+          <div class="tool-group">
+            <label class="field field-num"><span>Tempo</span><input type="number" id="bpmIn" min="30" max="300" step="0.1" /></label>
+            <button class="btn btn-small" id="tapBtn" title="Tap along to the beat">Tap</button>
+            <button class="btn btn-small" id="halfBtn" title="Halve the tempo">½×</button>
+            <button class="btn btn-small" id="dblBtn" title="Double the tempo">2×</button>
+          </div>
+          <div class="tool-group">
+            <span class="tool-label">Bar line</span>
+            <button class="btn btn-small" id="shiftBack" title="Move bar lines one beat earlier">−1 beat</button>
+            <button class="btn btn-small" id="shiftFwd" title="Move bar lines one beat later">+1 beat</button>
+          </div>
+          <div class="tool-group">
+            <label class="field"><span>Meter</span>
+              <select id="meterSel"><option value="4">4/4</option><option value="3">3/4</option><option value="2">2/4</option></select>
+            </label>
+            <label class="field"><span>Shortest note</span>
+              <select id="gridSel"><option value="4">16th</option><option value="2">8th</option></select>
+            </label>
+            <label class="field"><span>Hands split at</span>
+              <select id="splitSel"></select>
+            </label>
+          </div>
+          <div class="tool-group">
+            <label class="field field-range"><span>Sensitivity</span><input type="range" id="sensIn" min="0" max="100" value="50" /></label>
+          </div>
+          <div class="tool-group tool-end">
+            <button class="btn btn-small" id="midiBtn">Download MIDI</button>
+            <button class="btn btn-small" id="abcBtn">Download ABC</button>
+            <button class="btn btn-small" id="printBtn">Print</button>
+          </div>
+        </div>
+        <p class="score-meta" id="scoreMeta"></p>
+        <div class="sheet" id="sheet"></div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
