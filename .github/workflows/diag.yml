@@ -5,44 +5,13 @@ on:
 permissions:
   contents: write
 jobs:
-  inspect:
+  mirror:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
-      - run: pip install onnx onnxruntime numpy
       - run: |
+          curl -sSL -o cpu.onnx https://huggingface.co/adowu/htdemucs-6s-onnx/resolve/main/htdemucs_6s_fp16weights.onnx
           curl -sSL -o gpu.onnx https://huggingface.co/kramp/htdemucs-6s-webgpu-onnx/resolve/main/htdemucs_6s.onnx
-          ls -la *.onnx
-      - run: |
-          cat > insp.py <<'PY'
-          import onnx, collections, sys
-          from onnx import helper
-          for f in ['gpu.onnx']:
-              m = onnx.load(f)
-              print('=====', f, 'opset', [(o.domain,o.version) for o in m.opset_import], 'ir', m.ir_version)
-              ops = collections.Counter(n.op_type for n in m.graph.node)
-              print(dict(ops))
-              prod = {o:n for n in m.graph.node for o in n.output}
-              inits = {i.name for i in m.graph.initializer}
-              for n in m.graph.node:
-                  if n.op_type == 'ConstantOfShape':
-                      val = [a for a in n.attribute if a.name=='value']
-                      dt = onnx.TensorProto.DataType.Name(val[0].t.data_type) if val else 'default FLOAT'
-                      src = n.input[0]
-                      p = prod.get(src)
-                      print('COS', n.name, 'type', dt, 'input from', p.op_type if p else ('init' if src in inits else 'graph input'), src)
-              for i, n in enumerate(m.graph.node[:45]):
-                  print('NODE', i, n.op_type, n.name, list(n.input), list(n.output))
-              for n in m.graph.node:
-                  if n.op_type in ('ReduceMean','Sqrt','Sub','Gather','Concat','Slice'):
-                      print('KEY', n.op_type, n.name, list(n.input), list(n.output))
-              for n in m.graph.node[-25:]:
-                  print('TAIL', n.op_type, n.name, list(n.input), list(n.output))
-              print('inputs', [(i.name, [d.dim_value or d.dim_param for d in i.type.tensor_type.shape.dim]) for i in m.graph.input])
-              print('outputs', [(o.name, [d.dim_value or d.dim_param for d in o.type.tensor_type.shape.dim]) for o in m.graph.output])
-          PY
-          python insp.py > diag2.txt 2>&1
-          git config user.name diag-bot; git config user.email diag@users.noreply.github.com
-          git add diag2.txt; git commit -m "diag output [skip ci]"; git push
+          ls -la
+          gh release create diag-models cpu.onnx gpu.onnx -R ${{ github.repository }} --target diag --prerelease --title "temporary test models" --notes "Temporary, for testing. Will be deleted."
+        env:
+          GH_TOKEN: ${{ github.token }}

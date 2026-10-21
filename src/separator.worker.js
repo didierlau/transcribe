@@ -1,5 +1,8 @@
 // Runs HT-Demucs 6-stem (ONNX) in a worker and returns the separated stems.
-import * as ort from 'onnxruntime-web/webgpu';
+// Two ONNX Runtime builds: the WebGPU build for the graphics card, and the
+// plain WebAssembly build for the processor (the WebGPU build lacks some CPU
+// kernels the processor model needs, such as 64-bit ConstantOfShape).
+let ort;
 
 export const STEMS = ['drums', 'bass', 'other', 'vocals', 'guitar', 'piano'];
 const N = 343980; // model segment: 7.8 s at 44.1 kHz
@@ -54,6 +57,7 @@ function makeWindow() {
 }
 
 async function separate({ left, right, modelUrl, engine, wasmPaths }) {
+  ort = engine === 'gpu' ? await import('onnxruntime-web/webgpu') : await import('onnxruntime-web/wasm');
   if (wasmPaths) ort.env.wasm.wasmPaths = wasmPaths;
   ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(8, navigator.hardwareConcurrency || 4) : 1;
 
