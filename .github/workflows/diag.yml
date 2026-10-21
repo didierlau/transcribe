@@ -2,10 +2,13 @@ name: diag
 on:
   push:
     branches: [diag]
+permissions:
+  contents: write
 jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - run: pip install onnx onnxruntime numpy
@@ -34,4 +37,6 @@ jobs:
               print('inputs', [(i.name, [d.dim_value or d.dim_param for d in i.type.tensor_type.shape.dim]) for i in m.graph.input])
               print('outputs', [(o.name, [d.dim_value or d.dim_param for d in o.type.tensor_type.shape.dim]) for o in m.graph.output])
           PY
-          python insp.py
+          python insp.py > diag.txt 2>&1; ls -la *.onnx >> diag.txt
+          git config user.name diag-bot; git config user.email diag@users.noreply.github.com
+          git add diag.txt; git commit -m "diag output [skip ci]"; git push
