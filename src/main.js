@@ -12,10 +12,11 @@ const $ = (id) => document.getElementById(id);
 const BASE = import.meta.env.BASE_URL;
 const params = new URLSearchParams(location.search);
 
-const MODELS = {
-  gpu: { url: 'https://huggingface.co/kramp/htdemucs-6s-webgpu-onnx/resolve/main/htdemucs_6s.onnx', size: '285 MB' },
-  cpu: { url: 'https://huggingface.co/adowu/htdemucs-6s-onnx/resolve/main/htdemucs_6s_fp16weights.onnx', size: '136 MB' },
-};
+// One model for both engines: an HT-Demucs 6-stem export with its graph
+// pre-simplified, so it loads fast and runs on WebGPU and on WebAssembly.
+// (The smaller fp16 export needs too much memory to optimize in the browser.)
+const MODEL = { url: 'https://huggingface.co/kramp/htdemucs-6s-webgpu-onnx/resolve/main/htdemucs_6s.onnx', size: '285 MB' };
+const MODELS = { gpu: MODEL, cpu: MODEL };
 
 const STEM_INFO = {
   mix: { label: 'Full mix', color: '#C9D6DE' },
@@ -413,8 +414,7 @@ document.addEventListener('keydown', (e) => {
 const engineSel = $('engineSel');
 try { engineSel.value = localStorage.getItem('engine') || 'auto'; } catch {}
 function updateModelSize() {
-  const v = engineSel.value;
-  $('modelSize').textContent = v === 'gpu' ? MODELS.gpu.size : v === 'cpu' ? MODELS.cpu.size : `${MODELS.cpu.size}, or ${MODELS.gpu.size} on a graphics card`;
+  $('modelSize').textContent = MODEL.size;
 }
 engineSel.addEventListener('change', () => {
   try { localStorage.setItem('engine', engineSel.value); } catch {}
