@@ -19,6 +19,10 @@ export default defineConfig({
         find: /^onnxruntime-web\/webgpu$/,
         replacement: fileURLToPath(new URL('./node_modules/onnxruntime-web/dist/ort.webgpu.min.mjs', import.meta.url)),
       },
+      {
+        find: /^onnxruntime-web\/wasm$/,
+        replacement: fileURLToPath(new URL('./node_modules/onnxruntime-web/dist/ort.wasm.min.mjs', import.meta.url)),
+      },
     ],
   },
   worker: { format: 'es' },
