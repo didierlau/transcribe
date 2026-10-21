@@ -23,7 +23,12 @@ export default defineConfig({
   },
   worker: { format: 'es' },
   optimizeDeps: { exclude: ['onnxruntime-web'] },
-  build: { target: 'es2022', chunkSizeWarningLimit: 4000 },
+  build: {
+    target: 'es2022',
+    chunkSizeWarningLimit: 4000,
+    // Keep the recorder's AudioWorklet as a real file rather than a data: URL.
+    assetsInlineLimit: (file) => (file.endsWith('.worklet.js') ? false : undefined),
+  },
   server: { headers: isolation },
   preview: { headers: isolation },
 });

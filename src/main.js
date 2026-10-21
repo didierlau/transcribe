@@ -6,6 +6,7 @@ import { buildAbc } from './notation.js';
 import {
   decodeFile, toStereo44k, toMono, makeBuffer, bufferToWav, peaks, download, formatTime, SEP_RATE,
 } from './audio.js';
+import { Recorder, listMics, canRecordMic, canRecordTab } from './recorder.js';
 
 const $ = (id) => document.getElementById(id);
 const BASE = import.meta.env.BASE_URL;
@@ -35,7 +36,7 @@ const ctx = new AudioContext({ sampleRate: SEP_RATE, latencyHint: 'playback' });
 const player = new Player(ctx);
 
 const state = {
-  file: null,
+  fileName: '',
   original: null, // AudioBuffer
   stems: null, // {name: AudioBuffer}
   waveform: null,
@@ -60,39 +61,165 @@ function toast(text, ms = 5000) {
 }
 
 // ---------- loading a file ----------
+function loadBuffer(buf, name) {
+  stopSeparation();
+  closeRecorder();
+  player.pause();
+  updatePlayUi();
+  state.original = buf;
+  state.stems = null;
+  state.notes = null;
+  state.abc = null;
+  state.barShift = 0;
+  $('songName').textContent = name;
+  $('dropZone').hidden = true;
+  $('deck').hidden = false;
+  $('scorePanel').hidden = false;
+  $('splitPanel').hidden = false;
+  $('splitBtn').disabled = false;
+  $('scoreTools').hidden = true;
+  $('trProgress').hidden = true;
+  $('scoreMeta').textContent = '';
+  $('sheet').innerHTML = '';
+  player.loop = { enabled: false, a: 0, b: 0 };
+  updateLoopUi();
+  player.seek(0);
+  setTracks([{ id: 'mix', buffer: buf }]);
+  fillSources();
+  $('timeTotal').textContent = '/ ' + formatTime(buf.duration);
+}
+
 async function loadFile(file) {
   if (!file) return;
-  stopSeparation();
+  const prev = $('songName').textContent;
   try {
     $('songName').textContent = 'Opening ' + file.name + '…';
     const buf = await decodeFile(ctx, file);
-    state.file = file;
-    state.original = buf;
-    state.stems = null;
-    state.notes = null;
-    state.abc = null;
-    state.barShift = 0;
-    $('songName').textContent = file.name.replace(/\.[^.]+$/, '');
-    $('dropZone').hidden = true;
-    $('deck').hidden = false;
-    $('scorePanel').hidden = false;
-    $('splitPanel').hidden = false;
-    $('splitBtn').disabled = false;
-    $('scoreTools').hidden = true;
-    $('scoreMeta').textContent = '';
-    $('sheet').innerHTML = '';
-    player.loop = { enabled: false, a: 0, b: 0 };
-    updateLoopUi();
-    player.seek(0);
-    setTracks([{ id: 'mix', buffer: buf }]);
-    fillSources();
-    $('timeTotal').textContent = '/ ' + formatTime(buf.duration);
+    state.fileName = file.name.replace(/\.[^.]+$/, '');
+    loadBuffer(buf, state.fileName);
   } catch (err) {
     console.error(err);
-    $('songName').textContent = '';
+    $('songName').textContent = prev.startsWith('Opening') ? '' : prev;
     toast(`Couldn’t open ${file.name}. Try an MP3 or WAV file.`);
   }
 }
+
+// ---------- recording ----------
+const recorder = { active: null, source: 'mic', timer: 0 };
+
+function setRecSource(source) {
+  recorder.source = source;
+  document.querySelectorAll('.rec-source').forEach((b) =>
+    b.setAttribute('aria-checked', String(b.dataset.source === source)));
+  $('micField').hidden = source !== 'mic';
+  $('recHint').textContent = source === 'mic'
+    ? 'Place the microphone near the instruments or the speaker. Keep the level out of the red.'
+    : 'When the browser asks, choose the tab that’s playing and make sure “Also share tab audio” is on. Then press play in that tab.';
+}
+
+async function fillMics() {
+  const mics = await listMics().catch(() => []);
+  const sel = $('micSel');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Default microphone</option>' + mics
+    .filter((m) => m.deviceId && m.deviceId !== 'default')
+    .map((m, i) => `<option value="${m.deviceId}">${(m.label || `Microphone ${i + 1}`).replace(/</g, '&lt;')}</option>`).join('');
+  sel.value = [...sel.options].some((o) => o.value === cur) ? cur : '';
+}
+
+function openRecorder() {
+  if (!canRecordMic() && !canRecordTab()) {
+    toast('This browser can’t record audio. Try Chrome, Edge or Firefox.');
+    return;
+  }
+  player.pause();
+  updatePlayUi();
+  $('tabSource').disabled = !canRecordTab();
+  if (!canRecordTab()) $('tabDesc').textContent = 'Not available in this browser. Use Chrome or Edge on a computer.';
+  $('dropZone').hidden = true;
+  $('recPanel').hidden = false;
+  setRecSource(canRecordMic() ? 'mic' : 'tab');
+  fillMics();
+  $('recBtn').focus();
+}
+
+function closeRecorder() {
+  if (recorder.active) recorder.active.cancel();
+  recorder.active = null;
+  cancelAnimationFrame(recorder.timer);
+  setRecUi(false);
+  $('recPanel').hidden = true;
+  if (!state.original) $('dropZone').hidden = false;
+}
+
+function setRecUi(on) {
+  $('recBtn').classList.toggle('is-recording', on);
+  $('recBtn').setAttribute('aria-label', on ? 'Stop recording' : 'Start recording');
+  $('recPanel').classList.toggle('is-recording', on);
+  document.querySelectorAll('.rec-source, #micSel').forEach((el) => (el.disabled = on || (el.id === 'tabSource' && !canRecordTab())));
+  if (!on) { $('recTime').textContent = '0:00.0'; $('recMeter').style.clipPath = ''; recorder.level = 0; }
+}
+
+function meterLoop() {
+  const r = recorder.active;
+  if (!r) return;
+  const pk = r.readPeak();
+  const db = pk > 0 ? 20 * Math.log10(pk) : -60;
+  const fill = $('recMeter');
+  // jump up instantly, fall back slowly, like a hardware meter
+  recorder.level = Math.max(Math.max(0, Math.min(100, ((db + 60) / 60) * 100)), (recorder.level || 0) - 1.2);
+  const level = recorder.level;
+  fill.style.clipPath = `inset(0 ${100 - level}% 0 0)`;
+  $('recTime').textContent = formatTime(r.seconds);
+  if (recorder.source === 'tab' && r.seconds > 6 && r.maxPeak < 0.001) {
+    $('recHint').textContent = 'No sound is coming through. Check that the tab is playing and that tab audio is shared. Some services, like Spotify, block recording and only send silence.';
+  }
+  recorder.timer = requestAnimationFrame(meterLoop);
+}
+
+async function startRecording() {
+  const r = new Recorder();
+  recorder.active = r;
+  try {
+    await r.start(recorder.source, $('micSel').value);
+  } catch (err) {
+    recorder.active = null;
+    const name = err?.name || '';
+    if (err?.message === 'NO_TAB_AUDIO') toast('No sound was shared. Try again and turn on “Also share tab audio” in the sharing dialog.', 9000);
+    else if (name === 'NotAllowedError') toast(recorder.source === 'mic' ? 'Microphone access was blocked. Allow it in the address bar, then try again.' : 'Sharing was cancelled.');
+    else if (name === 'NotFoundError') toast('No microphone was found. Plug one in and try again.');
+    else toast('Couldn’t start recording: ' + (err?.message || err));
+    return;
+  }
+  r.onEnded = () => { if (recorder.active === r) stopRecording(); };
+  setRecUi(true);
+  if (recorder.source === 'mic') fillMics();
+  meterLoop();
+}
+
+async function stopRecording() {
+  const r = recorder.active;
+  if (!r) return;
+  recorder.active = null;
+  cancelAnimationFrame(recorder.timer);
+  const result = await r.stop();
+  setRecUi(false);
+  if (!result || result.channels[0].length < result.sampleRate * 0.5) {
+    toast('The recording was empty. Check the input and try again.');
+    return;
+  }
+  const buf = makeBuffer(ctx, result.channels, result.sampleRate);
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  state.fileName = `Recording ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}.${pad(d.getMinutes())}`;
+  loadBuffer(buf, state.fileName);
+  toast(r.maxPeak > 0.99 ? 'Recorded, but parts were too loud and distorted. Move the microphone back for the next take.' : 'Recorded. Split it or transcribe it like any song.', 7000);
+}
+
+['recordOpen', 'recordOpen2'].forEach((id) => $(id).addEventListener('click', openRecorder));
+$('recClose').addEventListener('click', closeRecorder);
+document.querySelectorAll('.rec-source').forEach((b) => b.addEventListener('click', () => setRecSource(b.dataset.source)));
+$('recBtn').addEventListener('click', () => (recorder.active ? stopRecording() : startRecording()));
 
 ['fileInput', 'fileInput2'].forEach((id) =>
   $(id).addEventListener('change', (e) => { loadFile(e.target.files[0]); e.target.value = ''; }));
@@ -163,7 +290,7 @@ function renderConsole() {
       player.applyGains(); refreshStrips();
     });
     strip.querySelector('.btn-dl').addEventListener('click', () => {
-      const base = (state.file?.name || 'song').replace(/\.[^.]+$/, '');
+      const base = state.fileName || 'song';
       download(bufferToWav(t.buffer), `${base} - ${info.label}.wav`);
     });
     t.el = strip;
@@ -272,7 +399,7 @@ $('loopBtn').addEventListener('click', () => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.target.closest('input, select, textarea') || !player.tracks.length) return;
+  if (e.target.closest('input, select, textarea') || !player.tracks.length || !$('recPanel').hidden) return;
   if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
   else if (e.key === 'a' || e.key === 'A') $('setA').click();
   else if (e.key === 'b' || e.key === 'B') $('setB').click();
@@ -347,7 +474,7 @@ $('splitBtn').addEventListener('click', async () => {
   if (!state.original) return;
   $('splitBtn').disabled = true;
   let engine = await pickEngine();
-  const file = state.file;
+  const file = state.original;
   setSplitProgress(0, 'Preparing the audio…');
   let stems;
   try {
@@ -372,7 +499,7 @@ $('splitBtn').addEventListener('click', async () => {
       : 'Separation failed: ' + msg, 9000);
     return;
   }
-  if (file !== state.file) return;
+  if (file !== state.original) return;
   state.sepWorker = null;
   state.stems = {};
   for (const s of stems) state.stems[s.name] = makeBuffer(ctx, s.channels);

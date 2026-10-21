@@ -2,7 +2,7 @@
 
 A practice tool for musicians that runs entirely in your browser:
 
-1. **Open a song.** MP3, WAV, FLAC, M4A or OGG. The audio never leaves your computer.
+1. **Open or record a song.** Open an MP3, WAV, FLAC, M4A or OGG, or record one: from a microphone (a live session, or music from a speaker in the room) or from another browser tab (a YouTube video, for example). The audio never leaves your computer.
 2. **Split it into instruments.** Drums, bass, piano, guitar, vocals and everything else, each on its own channel strip.
 3. **Make your own mix.** Pull a part down to play along in its place, solo a part to hear it clearly, loop a passage between A and B, or download any part as a WAV.
 4. **Transcribe.** Turn the piano part (or bass, guitar, vocals, other) into sheet music on a grand staff. Fix the tempo and bar lines if needed, then download it as MIDI or ABC, or print it.
@@ -25,7 +25,18 @@ Live site: https://didierlau.github.io/transcribe/
 
 **Getting a clean score:** split first, then transcribe the Piano stem. If the bar lines land in the wrong place, use −1 beat / +1 beat. If the tempo is off by half or double, use ½× and 2×, or tap along with Tap while the song plays. Raise Sensitivity to catch quiet notes, lower it to drop ghost notes.
 
-### What about Spotify?
+### Recording
+
+Click **Record** and pick a source:
+
+- **Microphone:** records a live session or a speaker in the room. The browser's voice-call processing (echo cancellation, noise suppression, automatic gain) is switched off so music comes through unaltered. Watch the meter: if it reaches the red, move the microphone back.
+- **Browser tab:** records the sound of another tab in real time, such as a YouTube video. Chrome or Edge on a computer only. In the sharing dialog, pick the tab and turn on **Also share tab audio**, then press play in that tab. A 4-minute song takes 4 minutes to record.
+
+Silence at the start and end is trimmed automatically. The recording then works like any opened file.
+
+### What about Spotify and YouTube links?
+
+Pasting a YouTube link isn't supported: YouTube doesn't let other sites access a video's audio, so record the tab instead.
 
 Spotify tracks can’t be used. Spotify streams are DRM-protected and its API doesn’t give apps access to the audio, so no web app can separate them. Use an audio file you own instead, such as an MP3 from a purchase or your own recording.
 

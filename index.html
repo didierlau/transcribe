@@ -15,8 +15,9 @@
     <header class="topbar">
       <h1 class="brand">Transcribe</h1>
       <p class="song" id="songName"></p>
+      <button class="btn btn-quiet" id="recordOpen"><span class="rec-dot" aria-hidden="true"></span>Record</button>
       <label class="btn btn-quiet" id="openBtn">
-        Open audio file
+        Open file
         <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.flac,.m4a,.ogg,.aac" hidden />
       </label>
     </header>
@@ -34,7 +35,39 @@
           </svg>
           <h2>Drop a song here</h2>
           <p>Or <label class="link">choose a file<input type="file" id="fileInput2" accept="audio/*,.mp3,.wav,.flac,.m4a,.ogg,.aac" hidden /></label>. MP3, WAV, FLAC, M4A and OGG all work.</p>
+          <p>Or <button class="link" id="recordOpen2">record</button> a live session, a speaker, or a YouTube video playing in another tab.</p>
           <p class="fine">Everything runs on your computer. Your audio is never uploaded.</p>
+        </div>
+      </section>
+
+      <section class="rec" id="recPanel" hidden>
+        <div class="rec-head">
+          <h2>Record</h2>
+          <button class="btn btn-small" id="recClose">Cancel</button>
+        </div>
+        <div class="rec-sources" role="radiogroup" aria-label="What to record">
+          <button class="rec-source" role="radio" aria-checked="true" data-source="mic">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>
+            <span class="rec-source-name">Microphone</span>
+            <span class="rec-source-desc">A live session, or music playing from a speaker in the room.</span>
+          </button>
+          <button class="rec-source" role="radio" aria-checked="false" data-source="tab" id="tabSource">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M10.5 12.5v4l3.5-2z"/></svg>
+            <span class="rec-source-name">Browser tab</span>
+            <span class="rec-source-desc" id="tabDesc">Sound from another tab, like a YouTube video. Chrome or Edge on a computer.</span>
+          </button>
+        </div>
+        <label class="field" id="micField">
+          <span>Microphone</span>
+          <select id="micSel"><option value="">Default microphone</option></select>
+        </label>
+        <p class="rec-hint" id="recHint"></p>
+        <div class="rec-live">
+          <button class="rec-btn" id="recBtn" aria-label="Start recording"><span></span></button>
+          <div class="rec-readout">
+            <div class="rec-time" id="recTime">0:00.0</div>
+            <div class="rec-meter" aria-hidden="true"><div class="rec-meter-fill" id="recMeter"></div></div>
+          </div>
         </div>
       </section>
 
