@@ -6,6 +6,14 @@ const N = 343980; // model segment: 7.8 s at 44.1 kHz
 const OVERLAP = Math.floor(N / 4);
 const CACHE = 'transcribe-models-v1';
 
+// The model's input normalization (mean and standard deviation over the whole
+// segment, for the waveform and spectrogram branches). Large reductions like
+// these can return NaN on some GPUs, so they run on the processor; it's tiny work.
+const NORMALIZE_NODES = [
+  '/ReduceMean_3', '/Sub_3', '/Mul_3', '/ReduceMean_5', '/Mul_4', '/Div_2', '/Sqrt_1', '/Add_1', '/Div_3',
+  '/ReduceMean_1', '/Sub', '/Mul_1', '/ReduceMean_2', '/Mul_2', '/Div', '/Sqrt', '/Add', '/Div_1',
+];
+
 const post = (msg, transfer) => self.postMessage(msg, transfer || []);
 
 async function fetchModel(url) {
@@ -61,7 +69,7 @@ async function separate({ left, right, modelUrl, engine, wasmPaths }) {
   const model = await fetchModel(modelUrl);
   post({ type: 'status', text: 'Starting the separation engine…' });
   const session = await ort.InferenceSession.create(model, {
-    executionProviders: engine === 'gpu' ? ['webgpu'] : ['wasm'],
+    executionProviders: engine === 'gpu' ? [{ name: 'webgpu', forceCpuNodeNames: NORMALIZE_NODES }] : ['wasm'],
     graphOptimizationLevel: 'all',
   });
 

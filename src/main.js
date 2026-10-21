@@ -34,6 +34,7 @@ const PITCH_RANGE = {
 
 const ctx = new AudioContext({ sampleRate: SEP_RATE, latencyHint: 'playback' });
 const player = new Player(ctx);
+if (params.has('debug')) window.__player = player;
 
 const state = {
   fileName: '',
@@ -425,7 +426,7 @@ async function pickEngine() {
   const pref = engineSel.value;
   if (pref !== 'auto') return pref;
   let gpuFailed = false;
-  try { gpuFailed = localStorage.getItem('gpuFailed') === '1'; } catch {}
+  try { gpuFailed = localStorage.getItem('gpuFailed-v2') === '1'; } catch {}
   if (!gpuFailed && navigator.gpu) {
     try { if (await navigator.gpu.requestAdapter()) return 'gpu'; } catch {}
   }
@@ -443,6 +444,12 @@ function setSplitProgress(frac, text) {
   $('splitProgress').hidden = false;
   $('splitFill').style.width = `${Math.round(frac * 100)}%`;
   $('splitText').textContent = text;
+}
+
+function shortError(err) {
+  const m = String(err?.message || err).replace(/^Error:\s*/, '');
+  if (m === 'ENGINE_INVALID_OUTPUT') return 'it produced invalid audio.';
+  return m.length > 160 ? m.slice(0, 160) + '…' : m;
 }
 
 async function runSeparation(engine) {
@@ -476,16 +483,17 @@ $('splitBtn').addEventListener('click', async () => {
   let engine = await pickEngine();
   const file = state.original;
   setSplitProgress(0, 'Preparing the audio…');
-  let stems;
+  let stems, gpuError = null;
   try {
     try {
       stems = await runSeparation(engine);
     } catch (err) {
       if (engine !== 'gpu' || !state.sepWorker) throw err;
       console.warn('GPU separation failed, falling back to CPU:', err);
-      try { localStorage.setItem('gpuFailed', '1'); } catch {}
+      gpuError = err;
+      try { localStorage.setItem('gpuFailed-v2', '1'); } catch {}
       engine = 'cpu';
-      toast('The graphics card engine didn’t work here. Switching to the processor engine.');
+      toast('The graphics card engine didn’t work here, so the processor engine is taking over. Details: ' + shortError(err), 9000);
       stems = await runSeparation(engine);
     }
   } catch (err) {
@@ -494,9 +502,9 @@ $('splitBtn').addEventListener('click', async () => {
     stopSeparation();
     const msg = String(err.message);
     toast(/memory|alloc/i.test(msg)
-      ? 'Ran out of memory while separating. Close other tabs or try a shorter song.'
+      ? 'Ran out of memory while separating. Close other tabs or try a shorter song. On a phone, use a computer instead.'
       : /download/i.test(msg) ? 'Couldn’t download the separation model. Check your connection and try again.'
-      : 'Separation failed: ' + msg, 9000);
+      : 'Separation failed. ' + (gpuError ? `Graphics card: ${shortError(gpuError)} Processor: ` : '') + shortError(err), 15000);
     return;
   }
   if (file !== state.original) return;
