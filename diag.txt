@@ -1,0 +1,35 @@
+===== cpu.onnx opset [('', 17)] ir 8
+{'Cast': 900, 'Constant': 11654, 'ConstantOfShape': 25, 'Concat': 780, 'Reshape': 923, 'Slice': 2090, 'Transpose': 116, 'Pad': 7, 'Shape': 2954, 'Gather': 815, 'Unsqueeze': 931, 'Conv': 90, 'Mul': 353, 'ReduceMean': 6, 'ReduceProd': 2, 'Sub': 13, 'Div': 82, 'Sqrt': 2, 'Add': 605, 'Erf': 56, 'InstanceNormalization': 74, 'Split': 48, 'Sigmoid': 48, 'Range': 697, 'Expand': 701, 'Mod': 3, 'Sin': 3, 'Tile': 4, 'Equal': 12, 'Where': 12, 'ScatterND': 684, 'Cos': 3, 'LayerNormalization': 26, 'Pow': 11, 'MatMul': 68, 'Softmax': 10, 'ConvTranspose': 10, 'Clip': 1}
+COS /ConstantOfShape type INT64 input from Constant /Constant_1_output_0
+COS /real_stft/ConstantOfShape type INT64 input from Constant /real_stft/Constant_6_output_0
+COS /tencoder.1/ConstantOfShape type INT64 input from Sub /tencoder.1/Sub_1_output_0
+COS /tencoder.2/ConstantOfShape type INT64 input from Sub /tencoder.2/Sub_1_output_0
+COS /tencoder.3/ConstantOfShape type INT64 input from Sub /tencoder.3/Sub_1_output_0
+COS /crosstransformer/ConstantOfShape type FLOAT input from Concat /crosstransformer/Concat_output_0
+COS /crosstransformer/ConstantOfShape_1 type INT64 input from Shape /crosstransformer/Shape_3_output_0
+COS /crosstransformer/ConstantOfShape_2 type INT64 input from Shape /crosstransformer/Shape_6_output_0
+COS /crosstransformer/ConstantOfShape_3 type INT64 input from Shape /crosstransformer/Shape_7_output_0
+COS /crosstransformer/ConstantOfShape_4 type INT64 input from Shape /crosstransformer/Shape_8_output_0
+COS /crosstransformer/ConstantOfShape_5 type INT64 input from Shape /crosstransformer/Shape_10_output_0
+COS /crosstransformer/ConstantOfShape_6 type INT64 input from Shape /crosstransformer/Shape_13_output_0
+COS /crosstransformer/ConstantOfShape_7 type INT64 input from Shape /crosstransformer/Shape_14_output_0
+COS /crosstransformer/ConstantOfShape_8 type INT64 input from Shape /crosstransformer/Shape_15_output_0
+COS /crosstransformer/ConstantOfShape_9 type INT64 input from Shape /crosstransformer/Shape_17_output_0
+COS /crosstransformer/ConstantOfShape_10 type INT64 input from Shape /crosstransformer/Shape_20_output_0
+COS /crosstransformer/ConstantOfShape_11 type INT64 input from Shape /crosstransformer/Shape_21_output_0
+COS /crosstransformer/ConstantOfShape_12 type INT64 input from Shape /crosstransformer/Shape_22_output_0
+COS /crosstransformer/ConstantOfShape_13 type INT64 input from Shape /crosstransformer/Shape_24_output_0
+COS /crosstransformer/ConstantOfShape_14 type INT64 input from Shape /crosstransformer/Shape_27_output_0
+COS /crosstransformer/ConstantOfShape_15 type INT64 input from Shape /crosstransformer/Shape_28_output_0
+COS /crosstransformer/ConstantOfShape_16 type INT64 input from Shape /crosstransformer/Shape_29_output_0
+COS /ConstantOfShape_1 type INT64 input from Constant /Constant_50_output_0
+COS /ConstantOfShape_2 type INT64 input from Constant /Constant_58_output_0
+COS /real_istft/ConstantOfShape type DOUBLE input from Concat /real_istft/Concat_1_output_0
+inputs [('mix', [1, 2, 343980])]
+outputs [('stems', ['Addstems_dim_0', 'Addstems_dim_1', 'Addstems_dim_2', 'Addstems_dim_3'])]
+===== gpu.onnx opset [('', 17), ('com.microsoft.experimental', 1), ('ai.onnx.ml', 5), ('ai.onnx.training', 1), ('com.microsoft', 1), ('ai.onnx.preview.training', 1), ('com.microsoft.nchwc', 1), ('org.pytorch.aten', 1)] ir 8
+{'ReduceMean': 4, 'Unsqueeze': 6, 'Sub': 2, 'Mul': 302, 'Div': 61, 'Sqrt': 2, 'Add': 199, 'Conv': 90, 'Erf': 56, 'Reshape': 288, 'InstanceNormalization': 74, 'Split': 48, 'Sigmoid': 48, 'Pad': 7, 'Transpose': 110, 'LayerNormalization': 26, 'Gemm': 48, 'Slice': 30, 'MatMul': 20, 'Softmax': 10, 'Concat': 1, 'ConvTranspose': 10, 'Gather': 3}
+inputs [('mix', [1, 2, 343980])]
+outputs [('stems', [1, 6, 2, 343980])]
+-rw-r--r-- 1 runner runner 136428532 Oct 21 14:36 cpu.onnx
+-rw-r--r-- 1 runner runner 284797240 Oct 21 14:36 gpu.onnx
